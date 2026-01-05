@@ -1,0 +1,5 @@
+pygame
+Pillow
+# Optional: tzlocal
+# Optional: watchdog
+# Optional (video playback): moviepy

@@ -1,0 +1,41 @@
+{
+  "folders": [
+    "C:/Users/pasca/OneDrive/Pictures/ADP"
+  ],
+  "interval_seconds": 6,
+  "prefetch_count": 4,
+  "transition_duration": 0.6,
+  "night_mode": {
+    "enabled": true,
+    "start": "23:00",
+    "end": "06:00"
+  },
+  "show_exif": true,
+  "randomize": true,
+  "scale_policy": "fit",
+  "mode": "photos",
+  "videos": [
+    "C:/Users/pasca/Downloads/2699389-hd_1920_1080_30fps.mp4",
+    "C:/Users/pasca/Downloads/14309960-hd_1920_1080_30fps.mp4"
+  ],
+  "key_bindings": {
+    "next": [
+      "K_RIGHT",
+      "K_d"
+    ],
+    "prev": [
+      "K_LEFT",
+      "K_a"
+    ],
+    "pause": [
+      "K_SPACE"
+    ],
+    "menu": [
+      "K_m",
+      "K_ESCAPE"
+    ],
+    "toggle_mode": [
+      "K_v"
+    ]
+  }
+}
