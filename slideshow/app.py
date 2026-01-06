@@ -26,10 +26,13 @@ class SlideshowApp:
         self.paused = False
         self.last_switch = time.time()
         self.current_surf = None
+        self.current_rect = None
         self.current_path = None
         self.current_bg = None
         self.mode = self.settings._typed.mode or 'photos'
         self.video_player = VideoPlayer(self.settings._typed.videos or [])
+        self._last_video_size = None
+        self.dirty = True
         self._in_menu = False
         self._paused_before_menu = False
 
@@ -190,11 +193,9 @@ class SlideshowApp:
                 self.next_image()
 
             # draw current
-            # draw current
             # prefer precomputed background for echoes to avoid per-frame blur work
             if self.mode == 'photos':
                 if self.current_surf:
-                    rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
                     # blit precomputed background if available
                     if self.current_bg is not None:
                         try:
@@ -203,7 +204,13 @@ class SlideshowApp:
                             self.screen.fill((0, 0, 0))
                     else:
                         self.screen.fill((0, 0, 0))
-                    self.screen.blit(self.current_surf, rect.topleft)
+                    # compute and cache rect only when dirty
+                    if self.dirty or self.current_rect is None:
+                        self.current_rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
+                        self.screen.blit(self.current_surf, self.current_rect)
+                        self.dirty = False
+                    else:
+                        self.screen.blit(self.current_surf, self.current_rect)
             else:
                 surf = None
                 if not self.paused:
@@ -219,7 +226,7 @@ class SlideshowApp:
             self.ui.draw_menu()
 
             pygame.display.flip()
-            self.clock.tick(60)
+            self.clock.tick(10)
 
         pygame.quit()
 
@@ -258,6 +265,9 @@ class SlideshowApp:
             self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect, enable_echo=self.settings._typed.enable_echo)
         except Exception:
             self.current_bg = None
+        # mark as dirty so draw will compute rect and blit once
+        self.current_rect = None
+        self.dirty = True
 
     def prev_image(self):
         if not self.images:
@@ -292,6 +302,9 @@ class SlideshowApp:
             self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect, enable_echo=self.settings._typed.enable_echo)
         except Exception:
             self.current_bg = None
+        # mark as dirty so draw will compute rect and blit once
+        self.current_rect = None
+        self.dirty = True
 
     def _on_settings_changed(self):
         new_mode = self.settings._typed.mode or 'photos'
@@ -317,6 +330,9 @@ class SlideshowApp:
                     self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect, enable_echo=self.settings._typed.enable_echo)
                 except Exception:
                     self.current_bg = None
+                # ensure draw computes rect for the newly loaded photo
+                self.current_rect = None
+                self.dirty = True
 
     def _select_video(self, index: int):
         vids = self.settings._typed.videos or []
