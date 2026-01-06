@@ -37,12 +37,21 @@ def scale_to_cover(surf: pygame.Surface, target_size: Tuple[int, int]) -> pygame
     return scale_image(surf, target_size, policy='cover')
 
 
-def blit_scaled_with_echo(screen: pygame.Surface, scaled_surf: pygame.Surface, dst_rect: Optional[pygame.Rect] = None):
+def blit_scaled_with_echo(screen: pygame.Surface, scaled_surf: pygame.Surface, dst_rect: Optional[pygame.Rect] = None, enable_echo: bool = True):
     """Blit an already-scaled surface centered at dst_rect (or center of screen).
 
     If there are pillar/letterbox bars, render a mirrored "echo" of the image
     into those bars to avoid plain black borders.
     """
+    # If echo disabled, just center-blit the image and return.
+    if not enable_echo:
+        sw, sh = screen.get_size()
+        if dst_rect is None:
+            dst_rect = scaled_surf.get_rect(center=(sw // 2, sh // 2))
+        screen.fill((0, 0, 0))
+        screen.blit(scaled_surf, dst_rect.topleft)
+        return
+
     sw, sh = screen.get_size()
     if dst_rect is None:
         dst_rect = scaled_surf.get_rect(center=(sw // 2, sh // 2))
@@ -126,12 +135,19 @@ def blit_scaled_with_echo(screen: pygame.Surface, scaled_surf: pygame.Surface, d
     screen.blit(scaled_surf, dst_rect.topleft)
 
 
-def make_echo_background(scaled_surf: pygame.Surface, screen_size: Tuple[int, int], dst_rect: Optional[pygame.Rect] = None) -> pygame.Surface:
+def make_echo_background(scaled_surf: pygame.Surface, screen_size: Tuple[int, int], dst_rect: Optional[pygame.Rect] = None, enable_echo: bool = True) -> pygame.Surface:
     """Return a Surface (screen-sized) containing the echo/blur background
     for `scaled_surf` positioned at `dst_rect`. The returned Surface does not
     include the main `scaled_surf` itself; callers should blit the main image
     on top at `dst_rect.topleft`.
     """
+    # If echo disabled, return a simple black background (no echoes).
+    if not enable_echo:
+        sw, sh = screen_size
+        surface = pygame.Surface((sw, sh))
+        surface.fill((0, 0, 0))
+        return surface
+
     sw, sh = screen_size
     surface = pygame.Surface((sw, sh)).convert_alpha()
     surface.fill((0, 0, 0))

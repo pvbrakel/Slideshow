@@ -26,6 +26,8 @@ class SettingsSchema:
     mode: Optional[str] = None
     videos: List[str] = field(default_factory=list)
     key_bindings: Dict[str, List[str]] = field(default_factory=dict)
+    enable_transitions: bool = True
+    enable_echo: bool = True
 
 
 DEFAULTS = asdict(SettingsSchema())
@@ -96,6 +98,8 @@ class Settings:
             mode=merged.get('mode'),
             videos=videos,
             key_bindings=merged.get('key_bindings') or {},
+            enable_transitions=bool(merged.get('enable_transitions', DEFAULTS.get('enable_transitions', True))),
+            enable_echo=bool(merged.get('enable_echo', DEFAULTS.get('enable_echo', True))),
         )
 
     def load(self):

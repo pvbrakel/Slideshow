@@ -104,7 +104,7 @@ class SlideshowApp:
             try:
                 from .utils import make_echo_background
                 rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
-                self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect)
+                self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect, enable_echo=self.settings._typed.enable_echo)
             except Exception:
                 self.current_bg = None
         else:
@@ -236,23 +236,26 @@ class SlideshowApp:
             if prev_surf:
                 prev_rect = prev_surf.get_rect(center=self.screen.get_rect().center)
                 dst_rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
-                fade_transition(
-                    self.screen,
-                    prev_surf,
-                    self.current_surf,
-                    self.settings._typed.transition_duration,
-                    src_pos=prev_rect.topleft,
-                    dst_pos=dst_rect.topleft,
-                )
+                # perform fade only if transitions enabled
+                if self.settings._typed.enable_transitions:
+                    fade_transition(
+                        self.screen,
+                        prev_surf,
+                        self.current_surf,
+                        self.settings._typed.transition_duration,
+                        src_pos=prev_rect.topleft,
+                        dst_pos=dst_rect.topleft,
+                        enable_echo=self.settings._typed.enable_echo,
+                    )
             else:
-                fade_transition(self.screen, self.current_surf, self.current_surf, self.settings._typed.transition_duration)
+                if self.settings._typed.enable_transitions:
+                    fade_transition(self.screen, self.current_surf, self.current_surf, self.settings._typed.transition_duration, enable_echo=self.settings._typed.enable_echo)
         except Exception:
             pass
-        # recompute background for new current image (best-effort)
         try:
             from .utils import make_echo_background
             rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
-            self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect)
+            self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect, enable_echo=self.settings._typed.enable_echo)
         except Exception:
             self.current_bg = None
 
@@ -268,27 +271,31 @@ class SlideshowApp:
             if prev_surf:
                 prev_rect = prev_surf.get_rect(center=self.screen.get_rect().center)
                 dst_rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
-                fade_transition(
-                    self.screen,
-                    prev_surf,
-                    self.current_surf,
-                    self.settings._typed.transition_duration,
-                    src_pos=prev_rect.topleft,
-                    dst_pos=dst_rect.topleft,
-                )
+                if self.settings._typed.enable_transitions:
+                    fade_transition(
+                        self.screen,
+                        prev_surf,
+                        self.current_surf,
+                        self.settings._typed.transition_duration,
+                        src_pos=prev_rect.topleft,
+                        dst_pos=dst_rect.topleft,
+                        enable_echo=self.settings._typed.enable_echo,
+                    )
             else:
-                fade_transition(self.screen, self.current_surf, self.current_surf, self.settings._typed.transition_duration)
+                if self.settings._typed.enable_transitions:
+                    fade_transition(self.screen, self.current_surf, self.current_surf, self.settings._typed.transition_duration, enable_echo=self.settings._typed.enable_echo)
         except Exception:
             pass
         try:
             from .utils import make_echo_background
             rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
-            self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect)
+            self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect, enable_echo=self.settings._typed.enable_echo)
         except Exception:
             self.current_bg = None
 
     def _on_settings_changed(self):
         new_mode = self.settings._typed.mode or 'photos'
+        # echo setting is passed explicitly to callers when needed
         if new_mode == self.mode:
             return
         self.mode = new_mode
@@ -307,7 +314,7 @@ class SlideshowApp:
                 try:
                     from .utils import make_echo_background
                     rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
-                    self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect)
+                    self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect, enable_echo=self.settings._typed.enable_echo)
                 except Exception:
                     self.current_bg = None
 

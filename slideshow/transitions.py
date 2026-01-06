@@ -3,7 +3,7 @@ import pygame
 from .utils import blit_scaled_with_echo
 
 
-def fade_transition(screen, src_surf, dst_surf, duration, src_pos=None, dst_pos=None):
+def fade_transition(screen, src_surf, dst_surf, duration, src_pos=None, dst_pos=None, enable_echo: bool = True):
     """Fade from src_surf to dst_surf over `duration` seconds.
 
     Render both source and destination into full-screen frames using
@@ -33,8 +33,8 @@ def fade_transition(screen, src_surf, dst_surf, duration, src_pos=None, dst_pos=
     # Pre-render the echoed full frames once and reuse while changing alpha.
     frame_src.fill((0, 0, 0, 0))
     frame_dst.fill((0, 0, 0, 0))
-    blit_scaled_with_echo(frame_src, src_surf, src_rect)
-    blit_scaled_with_echo(frame_dst, dst_surf, dst_rect)
+    blit_scaled_with_echo(frame_src, src_surf, src_rect, enable_echo=enable_echo)
+    blit_scaled_with_echo(frame_dst, dst_surf, dst_rect, enable_echo=enable_echo)
 
     while True:
         t = (time.time() - start) / duration
