@@ -65,7 +65,8 @@ class VideoPlayer:
             surf = surf.convert()
             # scale according to provided policy (default to cover)
             from .utils import scale_image
-            surf = scale_image(surf, target_size, policy=policy)
+            # use faster scaling for video frames to improve realtime performance
+            surf = scale_image(surf, target_size, policy=policy, fast=True)
             self._last_surface = surf
             self._last_time = time.time()
             return surf

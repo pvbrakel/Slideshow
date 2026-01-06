@@ -114,24 +114,26 @@ class Settings:
             if hostfile.exists():
                 target = hostfile
 
-        if target.exists():
-            try:
-                mtime = target.stat().st_mtime
-                if mtime == self._mtime:
-                    return
-                with target.open('r', encoding='utf-8') as f:
-                    raw = json.load(f)
-                self._typed = self._coerce(raw)
-                # keep a dict copy for compatibility
-                self._data = asdict(self._typed)
-                # nested dataclass turned to dict
-                self._data['night_mode'] = asdict(self._typed.night_mode)
-                self._mtime = mtime
-                # remember which file we loaded so saves go to the same file
-                self._active_file = target
-            except Exception:
-                # on any parse error, keep existing typed settings
-                pass
+        if not target.exists():
+            return False
+        try:
+            mtime = target.stat().st_mtime
+            if mtime == self._mtime:
+                return False
+            with target.open('r', encoding='utf-8') as f:
+                raw = json.load(f)
+            self._typed = self._coerce(raw)
+            # keep a dict copy for compatibility
+            self._data = asdict(self._typed)
+            # nested dataclass turned to dict
+            self._data['night_mode'] = asdict(self._typed.night_mode)
+            self._mtime = mtime
+            # remember which file we loaded so saves go to the same file
+            self._active_file = target
+            return True
+        except Exception:
+            # on any parse error, keep existing typed settings
+            return False
 
     def get(self, key, default=None):
         return self._data.get(key, DEFAULTS.get(key, default))
@@ -143,9 +145,22 @@ class Settings:
         def watch():
             while True:
                 try:
-                    self.load()
-                    for cb in self._callbacks:
-                        cb()
+                    changed = False
+                    try:
+                        changed = self.load()
+                    except Exception:
+                        # fallback: attempt to load but don't crash watcher
+                        try:
+                            self.load()
+                            changed = True
+                        except Exception:
+                            changed = False
+                    if changed:
+                        for cb in self._callbacks:
+                            try:
+                                cb()
+                            except Exception:
+                                pass
                 except Exception:
                     pass
                 time.sleep(interval)

@@ -57,6 +57,14 @@ class SlideshowApp:
         policy = self.settings._typed.scale_policy or 'cover'
         from .utils import scale_image
         surf = scale_image(surf, self.screen.get_size(), policy=policy)
+        # ensure optimal pixel format for fast blitting
+        try:
+            if surf.get_alpha() is None:
+                surf = surf.convert()
+            else:
+                surf = surf.convert_alpha()
+        except Exception:
+            pass
         return surf
 
     def current_exif_text(self):

@@ -7,6 +7,8 @@ class UI:
         self.screen = screen
         self.settings = settings
         self.font = pygame.font.SysFont(None, 36)
+        self._last_exif_text = None
+        self._last_exif_surf = None
         self.menu_open = False
         self.menu_items = [
             {"action": "toggle_mode"},
@@ -78,7 +80,16 @@ class UI:
     def draw_exif_overlay(self, text: str):
         if not self.settings._typed.show_exif:
             return
-        surf = self.font.render(text, True, (255, 255, 255))
+        # cache rendered EXIF text to avoid per-frame font rendering
+        if text != self._last_exif_text:
+            try:
+                self._last_exif_surf = self.font.render(text, True, (255, 255, 255))
+            except Exception:
+                self._last_exif_surf = None
+            self._last_exif_text = text
+        surf = self._last_exif_surf
+        if not surf:
+            return
         w, h = surf.get_size()
         pad = 8
         rect = pygame.Surface((w + pad * 2, h + pad * 2), pygame.SRCALPHA)

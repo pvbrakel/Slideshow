@@ -30,23 +30,21 @@ def fade_transition(screen, src_surf, dst_surf, duration, src_pos=None, dst_pos=
     frame_src = pygame.Surface((sw, sh), flags=pygame.SRCALPHA)
     frame_dst = pygame.Surface((sw, sh), flags=pygame.SRCALPHA)
 
+    # Pre-render the echoed full frames once and reuse while changing alpha.
+    frame_src.fill((0, 0, 0, 0))
+    frame_dst.fill((0, 0, 0, 0))
+    blit_scaled_with_echo(frame_src, src_surf, src_rect)
+    blit_scaled_with_echo(frame_dst, dst_surf, dst_rect)
+
     while True:
         t = (time.time() - start) / duration
         if t >= 1.0:
-            # render final destination frame and blit to screen
-            frame_dst.fill((0, 0, 0, 0))
-            blit_scaled_with_echo(frame_dst, dst_surf, dst_rect)
+            # final: blit destination fully
             screen.blit(frame_dst, (0, 0))
             pygame.display.flip()
             break
 
         alpha = int(255 * t)
-
-        # render both frames including echoes
-        frame_src.fill((0, 0, 0, 0))
-        frame_dst.fill((0, 0, 0, 0))
-        blit_scaled_with_echo(frame_src, src_surf, src_rect)
-        blit_scaled_with_echo(frame_dst, dst_surf, dst_rect)
 
         # blend destination on top with alpha
         tmp = frame_dst.copy()

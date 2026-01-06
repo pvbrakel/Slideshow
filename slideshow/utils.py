@@ -10,7 +10,7 @@ if not _PIL_AVAILABLE:
     ImageFilter: Any = None
 
 
-def scale_image(surf: pygame.Surface, target_size: Tuple[int, int], policy: str = 'cover') -> pygame.Surface:
+def scale_image(surf: pygame.Surface, target_size: Tuple[int, int], policy: str = 'cover', fast: bool = False) -> pygame.Surface:
     """Scale `surf` to target_size. policy: 'cover' (crop) or 'fit' (contain).
 
     - 'cover': scale so the surface fills target (may crop edges)
@@ -25,7 +25,10 @@ def scale_image(surf: pygame.Surface, target_size: Tuple[int, int], policy: str 
     else:
         scale = max(tw / sw, th / sh)
     new_size = (max(1, int(sw * scale)), max(1, int(sh * scale)))
-    scaled = pygame.transform.smoothscale(surf, new_size)
+    if fast:
+        scaled = pygame.transform.scale(surf, new_size)
+    else:
+        scaled = pygame.transform.smoothscale(surf, new_size)
     return scaled
 
 
