@@ -11,6 +11,17 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+Install (Raspberry pi):
+
+```sh
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+sudo apt-get install python3-sdl2 libopenjp2-7 libegl-dev
+
+```
+
 Run:
 
 ```powershell

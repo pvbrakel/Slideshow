@@ -24,33 +24,33 @@ class UI:
     def menu_up(self):
         if not self.menu_open:
             return
-        total = len(self.menu_items) + len(self.settings.get('videos') or [])
+        total = len(self.menu_items) + len(self.settings._typed.videos or [])
         self.selected = (self.selected - 1) % total
 
     def menu_down(self):
         if not self.menu_open:
             return
-        total = len(self.menu_items) + len(self.settings.get('videos') or [])
+        total = len(self.menu_items) + len(self.settings._typed.videos or [])
         self.selected = (self.selected + 1) % total
 
     def menu_select(self):
         if not self.menu_open:
             return
-        vids = self.settings.get('videos') or []
+        vids = self.settings._typed.videos or []
         core_count = len(self.menu_items)
         if self.selected < core_count:
             act = self.menu_items[self.selected]['action']
             if act == 'toggle_mode':
-                cur = self.settings.get('mode', 'photos')
+                cur = self.settings._typed.mode or 'photos'
                 new = 'videos' if cur == 'photos' else 'photos'
-                self.settings._data['mode'] = new
+                self.settings._typed.mode = new
                 try:
                     self.settings.save()
                 except Exception:
                     pass
             elif act == 'toggle_exif':
-                cur = bool(self.settings.get('show_exif'))
-                self.settings._data['show_exif'] = (not cur)
+                cur = bool(self.settings._typed.show_exif)
+                self.settings._typed.show_exif = (not cur)
                 try:
                     self.settings.save()
                 except Exception:
@@ -62,7 +62,7 @@ class UI:
             vid_index = self.selected - core_count
             if 0 <= vid_index < len(vids):
                 # set mode to videos and call callback
-                self.settings._data['mode'] = 'videos'
+                self.settings._typed.mode = 'videos'
                 try:
                     self.settings.save()
                 except Exception:
@@ -76,7 +76,7 @@ class UI:
                 self.menu_open = False
 
     def draw_exif_overlay(self, text: str):
-        if not self.settings.get('show_exif'):
+        if not self.settings._typed.show_exif:
             return
         surf = self.font.render(text, True, (255, 255, 255))
         w, h = surf.get_size()
@@ -96,19 +96,19 @@ class UI:
         title = self.font.render('Menu (Press M to close)', True, (255, 255, 255))
         self.screen.blit(title, (50, 50))
         # show current mode and instructions
-        mode = self.settings.get('mode', 'photos')
+        mode = self.settings._typed.mode or 'photos'
         mtxt = self.font.render(f'Mode: {mode} (press V to toggle)', True, (255, 255, 255))
         self.screen.blit(mtxt, (50, 100))
         # render menu items and highlight selected
         base_y = 160
-        vids = self.settings.get('videos') or []
+        vids = self.settings._typed.videos or []
         total_items = self.menu_items + [{"action": "select_video", "path": v} for v in vids]
         for i, item in enumerate(total_items):
             label = ''
             if item.get('action') == 'toggle_mode':
                 label = f"Mode: {mode}"
             elif item.get('action') == 'toggle_exif':
-                label = f"Show EXIF: {bool(self.settings.get('show_exif'))}"
+                label = f"Show EXIF: {bool(self.settings._typed.show_exif)}"
             elif item.get('action') == 'close':
                 label = 'Close Menu'
             elif item.get('action') == 'select_video':

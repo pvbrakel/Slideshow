@@ -29,7 +29,7 @@ def map_event_to_action(event, settings=None):
     action = DEFAULT_KEY_MAP.get(event.key)
     # support custom key_bindings in settings (simple names like 'next','prev')
     if not action and settings:
-        kb = settings.get('key_bindings', {})
+        kb = settings._typed.key_bindings or {}
         for act, keys in kb.items():
             for k in keys:
                 try:

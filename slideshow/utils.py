@@ -121,3 +121,88 @@ def blit_scaled_with_echo(screen: pygame.Surface, scaled_surf: pygame.Surface, d
 
     # finally blit the scaled image
     screen.blit(scaled_surf, dst_rect.topleft)
+
+
+def make_echo_background(scaled_surf: pygame.Surface, screen_size: Tuple[int, int], dst_rect: Optional[pygame.Rect] = None) -> pygame.Surface:
+    """Return a Surface (screen-sized) containing the echo/blur background
+    for `scaled_surf` positioned at `dst_rect`. The returned Surface does not
+    include the main `scaled_surf` itself; callers should blit the main image
+    on top at `dst_rect.topleft`.
+    """
+    sw, sh = screen_size
+    surface = pygame.Surface((sw, sh)).convert_alpha()
+    surface.fill((0, 0, 0))
+
+    if dst_rect is None:
+        dst_rect = scaled_surf.get_rect(center=(sw // 2, sh // 2))
+
+    # compute bars
+    left = dst_rect.left
+    right = sw - dst_rect.right
+    top = dst_rect.top
+    bottom = sh - dst_rect.bottom
+
+    # helper to create mirrored strip (reuse logic from blit_scaled_with_echo)
+    def make_echo_strip(src_rect, out_size, flip_x=False, flip_y=False):
+        try:
+            strip = scaled_surf.subsurface(src_rect).copy()
+            echo = pygame.transform.smoothscale(strip, out_size)
+            if flip_x or flip_y:
+                echo = pygame.transform.flip(echo, flip_x, flip_y)
+
+            def _apply_blur(surface: pygame.Surface, radius: int = 24) -> pygame.Surface:
+                if _PIL_AVAILABLE:
+                    try:
+                        data = pygame.image.tostring(surface, 'RGBA')
+                        img = Image.frombytes('RGBA', surface.get_size(), data)
+                        img = img.filter(ImageFilter.GaussianBlur(radius=radius))
+                        out_data = img.tobytes()
+                        return pygame.image.fromstring(out_data, img.size, 'RGBA')
+                    except Exception:
+                        pass
+                w, h = surface.get_size()
+                down_w = max(1, w // 12)
+                down_h = max(1, h // 12)
+                try:
+                    small = pygame.transform.smoothscale(surface, (down_w, down_h))
+                    blurred = pygame.transform.smoothscale(small, (w, h))
+                    small = pygame.transform.smoothscale(blurred, (max(1, down_w // 2), max(1, down_h // 2)))
+                    blurred = pygame.transform.smoothscale(small, (w, h))
+                    return blurred
+                except Exception:
+                    return surface
+
+            echo = _apply_blur(echo, radius=28)
+            return echo
+        except Exception:
+            return None
+
+    # vertical bars (left/right)
+    if left > 0:
+        src_w = max(1, min(8, scaled_surf.get_width()))
+        src_rect = pygame.Rect(0, 0, src_w, scaled_surf.get_height())
+        echo = make_echo_strip(src_rect, (left, dst_rect.height), flip_x=True)
+        if echo:
+            surface.blit(echo, (0, dst_rect.top))
+    if right > 0:
+        src_w = max(1, min(8, scaled_surf.get_width()))
+        src_rect = pygame.Rect(scaled_surf.get_width() - src_w, 0, src_w, scaled_surf.get_height())
+        echo = make_echo_strip(src_rect, (right, dst_rect.height), flip_x=True)
+        if echo:
+            surface.blit(echo, (dst_rect.right, dst_rect.top))
+
+    # horizontal bars (top/bottom)
+    if top > 0:
+        src_h = max(1, min(8, scaled_surf.get_height()))
+        src_rect = pygame.Rect(0, 0, scaled_surf.get_width(), src_h)
+        echo = make_echo_strip(src_rect, (dst_rect.width, top), flip_y=True)
+        if echo:
+            surface.blit(echo, (dst_rect.left, 0))
+    if bottom > 0:
+        src_h = max(1, min(8, scaled_surf.get_height()))
+        src_rect = pygame.Rect(0, scaled_surf.get_height() - src_h, scaled_surf.get_width(), src_h)
+        echo = make_echo_strip(src_rect, (dst_rect.width, bottom), flip_y=True)
+        if echo:
+            surface.blit(echo, (dst_rect.left, dst_rect.bottom))
+
+    return surface

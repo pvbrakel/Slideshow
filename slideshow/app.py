@@ -11,12 +11,11 @@ from .transitions import fade_transition
 from .ui import UI
 from .videos import VideoPlayer
 from .input import map_event_to_action
-from .cache import ImageCache
-
 
 class SlideshowApp:
     def __init__(self):
         pygame.init()
+        pygame.mouse.set_visible(False)
         self.settings = Settings('settings.json')
         self.settings.on_change(self._on_settings_changed)
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
@@ -28,21 +27,18 @@ class SlideshowApp:
         self.last_switch = time.time()
         self.current_surf = None
         self.current_path = None
-        self.mode = self.settings.get('mode', 'photos')
-        self.video_player = VideoPlayer(self.settings.get('videos') or [])
-        self.cache = ImageCache(maxsize=128)
+        self.current_bg = None
+        self.mode = self.settings._typed.mode or 'photos'
+        self.video_player = VideoPlayer(self.settings._typed.videos or [])
         self._in_menu = False
         self._paused_before_menu = False
 
     def load_images(self):
-        folders = self.settings.get('folders') or ['./images']
+        folders = self.settings._typed.folders or ['./images']
         imgs = scan_folders(folders)
-        if self.settings.get('randomize', True):
+        if self.settings._typed.randomize:
             random.shuffle(imgs)
         self.images = imgs
-        # prefetch initial images
-        if self.images:
-            self.cache.prefetch(self.images[: self.settings.get('prefetch_count', 4)], target_size=self.screen.get_size())
 
     def load_surface(self, path):
         try:
@@ -53,12 +49,12 @@ class SlideshowApp:
             from PIL import Image
             img = Image.open(path)
             img = img.convert('RGBA')
-            mode = img.mode
+            mode = 'RGBA'
             size = img.size
             data = img.tobytes()
             surf = pygame.image.fromstring(data, size, mode)
         # scale according to settings policy ('cover' or 'fit')
-        policy = self.settings.get('scale_policy', 'cover')
+        policy = self.settings._typed.scale_policy or 'cover'
         from .utils import scale_image
         surf = scale_image(surf, self.screen.get_size(), policy=policy)
         return surf
@@ -69,11 +65,11 @@ class SlideshowApp:
         return get_month_year_or_folder(self.current_path)
 
     def is_in_night(self):
-        nm = self.settings.get('night_mode', {})
-        if not nm.get('enabled'):
+        nm = self.settings._typed.night_mode
+        if not nm.enabled:
             return False
-        start = nm.get('start', '23:00')
-        end = nm.get('end', '06:00')
+        start = nm.start or '23:00'
+        end = nm.end or '06:00'
         from datetime import datetime, time as dtime
         now = datetime.now().time()
         sh, sm = map(int, start.split(':'))
@@ -91,19 +87,27 @@ class SlideshowApp:
         # initialize mode resources
         if self.mode == 'photos':
             if not self.images:
-                print('No images found in folders:', self.settings.get('folders'))
+                print('No images found in folders:', self.settings._typed.folders)
                 return
             self.index = 0
             self.current_path = self.images[self.index]
             self.current_surf = self.load_surface(self.current_path)
+            # precompute echo background for current image
+            try:
+                from .utils import make_echo_background
+                rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
+                self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect)
+            except Exception:
+                self.current_bg = None
         else:
             # videos mode
-            if not (self.settings.get('videos') or []):
+            if not (self.settings._typed.videos or []):
                 print('No videos configured in settings.json')
                 return
             self.video_player.load_current_clip()
-            policy = str(self.settings.get('scale_policy') or 'cover')
+            policy = str(self.settings._typed.scale_policy or 'cover')
             self.current_surf = self.video_player.get_surface(self.screen.get_size(), policy=policy)
+            self.current_bg = None
 
         running = True
         while running:
@@ -147,8 +151,12 @@ class SlideshowApp:
                     # toggle between photos and videos
                     new_mode = 'videos' if self.mode == 'photos' else 'photos'
                     self.mode = new_mode
-                    self.settings._data['mode'] = new_mode
-                    self.settings.save()
+                    # update typed settings and persist
+                    self.settings._typed.mode = new_mode
+                    try:
+                        self.settings.save()
+                    except Exception:
+                        pass
                     # apply immediately
                     self._on_settings_changed()
 
@@ -169,21 +177,29 @@ class SlideshowApp:
                 self.paused = True
 
             now = time.time()
-            interval = self.settings.get('interval_seconds', 6)
+            interval = self.settings._typed.interval_seconds
             if not self.paused and self.mode == 'photos' and (now - self.last_switch) >= interval:
                 self.next_image()
 
             # draw current
-            self.screen.fill((0, 0, 0))
+            # draw current
+            # prefer precomputed background for echoes to avoid per-frame blur work
             if self.mode == 'photos':
                 if self.current_surf:
                     rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
-                    from .utils import blit_scaled_with_echo
-                    blit_scaled_with_echo(self.screen, self.current_surf, rect)
+                    # blit precomputed background if available
+                    if self.current_bg is not None:
+                        try:
+                            self.screen.blit(self.current_bg, (0, 0))
+                        except Exception:
+                            self.screen.fill((0, 0, 0))
+                    else:
+                        self.screen.fill((0, 0, 0))
+                    self.screen.blit(self.current_surf, rect.topleft)
             else:
                 surf = None
                 if not self.paused:
-                    policy = str(self.settings.get('scale_policy') or 'cover')
+                    policy = str(self.settings._typed.scale_policy or 'cover')
                     surf = self.video_player.get_surface(self.screen.get_size(), policy=policy)
                 if surf:
                     rect = surf.get_rect(center=self.screen.get_rect().center)
@@ -197,11 +213,6 @@ class SlideshowApp:
             pygame.display.flip()
             self.clock.tick(60)
 
-        # cleanup
-        try:
-            self.cache.stop()
-        except Exception:
-            pass
         pygame.quit()
 
     def next_image(self):
@@ -221,14 +232,21 @@ class SlideshowApp:
                     self.screen,
                     prev_surf,
                     self.current_surf,
-                    self.settings.get('transition_duration', 0.6),
+                    self.settings._typed.transition_duration,
                     src_pos=prev_rect.topleft,
                     dst_pos=dst_rect.topleft,
                 )
             else:
-                fade_transition(self.screen, self.current_surf, self.current_surf, self.settings.get('transition_duration', 0.6))
+                fade_transition(self.screen, self.current_surf, self.current_surf, self.settings._typed.transition_duration)
         except Exception:
             pass
+        # recompute background for new current image (best-effort)
+        try:
+            from .utils import make_echo_background
+            rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
+            self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect)
+        except Exception:
+            self.current_bg = None
 
     def prev_image(self):
         if not self.images:
@@ -246,40 +264,53 @@ class SlideshowApp:
                     self.screen,
                     prev_surf,
                     self.current_surf,
-                    self.settings.get('transition_duration', 0.6),
+                    self.settings._typed.transition_duration,
                     src_pos=prev_rect.topleft,
                     dst_pos=dst_rect.topleft,
                 )
             else:
-                fade_transition(self.screen, self.current_surf, self.current_surf, self.settings.get('transition_duration', 0.6))
+                fade_transition(self.screen, self.current_surf, self.current_surf, self.settings._typed.transition_duration)
         except Exception:
             pass
+        try:
+            from .utils import make_echo_background
+            rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
+            self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect)
+        except Exception:
+            self.current_bg = None
 
     def _on_settings_changed(self):
-        new_mode = self.settings.get('mode', 'photos')
+        new_mode = self.settings._typed.mode or 'photos'
         if new_mode == self.mode:
             return
         self.mode = new_mode
         if self.mode == 'videos':
-            self.video_player = VideoPlayer(self.settings.get('videos') or [])
+            self.video_player = VideoPlayer(self.settings._typed.videos or [])
             self.video_player.load_current_clip()
-            policy = str(self.settings.get('scale_policy') or 'cover')
+            policy = str(self.settings._typed.scale_policy or 'cover')
             self.current_surf = self.video_player.get_surface(self.screen.get_size(), policy=policy)
+            self.current_bg = None
         else:
             self.load_images()
             if self.images:
                 self.index = 0
                 self.current_path = self.images[self.index]
                 self.current_surf = self.load_surface(self.current_path)
+                try:
+                    from .utils import make_echo_background
+                    rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
+                    self.current_bg = make_echo_background(self.current_surf, self.screen.get_size(), rect)
+                except Exception:
+                    self.current_bg = None
 
     def _select_video(self, index: int):
-        vids = self.settings.get('videos') or []
+        vids = self.settings._typed.videos or []
         if not vids:
             return
         if index < 0 or index >= len(vids):
             return
         # switch to video mode and load the selected clip
-        self.settings._data['mode'] = 'videos'
+        self.settings._typed.mode = 'videos'
         try:
             self.settings.save()
         except Exception:
@@ -288,5 +319,6 @@ class SlideshowApp:
         self.video_player = VideoPlayer(vids)
         self.video_player.index = index
         self.video_player.load_current_clip()
-        policy = str(self.settings.get('scale_policy') or 'cover')
+        policy = str(self.settings._typed.scale_policy or 'cover')
         self.current_surf = self.video_player.get_surface(self.screen.get_size(), policy=policy)
+        self.current_bg = None
