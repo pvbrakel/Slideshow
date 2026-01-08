@@ -15,7 +15,7 @@ class VideoPlayer:
         self._last_time = 0.0
         self._fps = 24.0
         try:
-            import moviepy.editor as mpy
+            import moviepy as mpy
             self.mpy = mpy
         except Exception:
             self.mpy = None

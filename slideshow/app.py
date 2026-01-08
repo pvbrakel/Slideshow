@@ -226,7 +226,7 @@ class SlideshowApp:
             self.ui.draw_menu()
 
             pygame.display.flip()
-            self.clock.tick(10)
+            self.clock.tick(30)
 
         pygame.quit()
 
