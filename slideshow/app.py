@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .settings import Settings
 from .loader import scan_folders
-from .exif import get_month_year_or_folder
+from .exif import get_image_metadata
 from .utils import scale_to_cover
 from .transitions import fade_transition
 from .ui import UI
@@ -30,7 +30,7 @@ class SlideshowApp:
         self.current_path = None
         self.current_bg = None
         self.mode = self.settings._typed.mode or 'photos'
-        self.video_player = VideoPlayer(self.settings._typed.videos or [])
+        self.video_player = VideoPlayer(self.screen, self.settings._typed.videos or [])
         self._last_video_size = None
         self.dirty = True
         self._in_menu = False
@@ -73,7 +73,13 @@ class SlideshowApp:
     def current_exif_text(self):
         if not self.current_path:
             return ''
-        return get_month_year_or_folder(self.current_path)
+        # ensure metadata reading happens (people extraction occurs inside)
+        try:
+            _md = get_image_metadata(self.current_path)
+            return _md.date_created_simple
+        except Exception:
+            _md = None
+        return ""
 
     def is_in_night(self):
         nm = self.settings._typed.night_mode
@@ -116,8 +122,6 @@ class SlideshowApp:
                 print('No videos configured in settings.json')
                 return
             self.video_player.load_current_clip()
-            policy = str(self.settings._typed.scale_policy or 'cover')
-            self.current_surf = self.video_player.get_surface(self.screen.get_size(), policy=policy)
             self.current_bg = None
 
         running = True
@@ -146,13 +150,9 @@ class SlideshowApp:
                 elif action == 'next':
                     if self.mode == 'photos':
                         self.next_image()
-                    else:
-                        self.video_player.next()
                 elif action == 'prev':
                     if self.mode == 'photos':
                         self.prev_image()
-                    else:
-                        self.video_player.prev()
                 elif action == 'pause':
                     self.paused = not self.paused
                 elif action == 'menu':
@@ -206,6 +206,7 @@ class SlideshowApp:
                         self.screen.fill((0, 0, 0))
                     # compute and cache rect only when dirty
                     if self.dirty or self.current_rect is None:
+                        self.video_player.stop()
                         self.current_rect = self.current_surf.get_rect(center=self.screen.get_rect().center)
                         self.screen.blit(self.current_surf, self.current_rect)
                         self.dirty = False
@@ -214,11 +215,10 @@ class SlideshowApp:
             else:
                 surf = None
                 if not self.paused:
-                    policy = str(self.settings._typed.scale_policy or 'cover')
-                    surf = self.video_player.get_surface(self.screen.get_size(), policy=policy)
-                if surf:
-                    rect = surf.get_rect(center=self.screen.get_rect().center)
-                    self.screen.blit(surf, rect.topleft)
+                    if (self.dirty or self.video_player is None):
+                        self.video_player.load_current_clip()
+                        self.dirty = False
+                    self.video_player.tick()
 
             # exif overlay
             self.ui.draw_exif_overlay(self.current_exif_text())
@@ -313,10 +313,7 @@ class SlideshowApp:
             return
         self.mode = new_mode
         if self.mode == 'videos':
-            self.video_player = VideoPlayer(self.settings._typed.videos or [])
             self.video_player.load_current_clip()
-            policy = str(self.settings._typed.scale_policy or 'cover')
-            self.current_surf = self.video_player.get_surface(self.screen.get_size(), policy=policy)
             self.current_bg = None
         else:
             self.load_images()
@@ -347,9 +344,6 @@ class SlideshowApp:
         except Exception:
             pass
         self.mode = 'videos'
-        self.video_player = VideoPlayer(vids)
         self.video_player.index = index
         self.video_player.load_current_clip()
-        policy = str(self.settings._typed.scale_policy or 'cover')
-        self.current_surf = self.video_player.get_surface(self.screen.get_size(), policy=policy)
         self.current_bg = None

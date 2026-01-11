@@ -1,7 +1,8 @@
 pygame
 Pillow
 tzlocal
-moviepy
+pyvidplayer2
+pyexiv2
 # Optional: tzlocal
 # Optional: watchdog
 # Optional (video playback): moviepy
